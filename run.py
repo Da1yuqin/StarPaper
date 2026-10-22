@@ -342,6 +342,45 @@ def render_chapter_overview(data):
   md+=[f'- [{chapter["title"]}](#{chapter["target"]})：{chapter["purpose"]}']
  return rendered+'</ol></nav>',md
 
+def render_importance_check(data):
+ """Render the author's original checklist without rewriting its wording."""
+ content=data['importance_check'];lines=content['markdown'].splitlines();e=html.escape
+ rendered=f'<section class="major-chapter" id="{e(content["id"])}"><h2>4. {e(lines[0][2:])}</h2>'
+ nav='';depth=0;part=0
+ def inline(text):
+  return re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',e(html.unescape(text)))
+ def close_lists():
+  nonlocal depth
+  text=''
+  while depth:text+='</li></ul>';depth-=1
+  return text
+ for line in lines[1:]:
+  if not line.strip():continue
+  if line.startswith('## '):
+   rendered+=close_lists()+('</section>' if part else '')
+   part+=1;key=f'{content["id"]}-{part}';title=line[3:]
+   rendered+=f'<section class="paragraph-lesson" id="{e(key)}"><h3>{e(title)}</h3>'
+   nav+=f'<a href="#{e(key)}">{e(title)}</a>'
+  elif re.match(r'^\s*- ',line):
+   indent=len(line)-len(line.lstrip());target=indent//2+1
+   if target>depth:
+    assert target==depth+1
+    rendered+='<ul><li>';depth=target
+   else:
+    while depth>target:rendered+='</li></ul>';depth-=1
+    rendered+='</li><li>'
+   rendered+=inline(line.lstrip()[2:])
+  else:
+   rendered+=close_lists()+'<p>'+inline(line)+'</p>'
+ rendered+=close_lists()+('</section>' if part else '')+'</section>'
+ md=['',f'<a id="{content["id"]}"></a>','## 4. '+lines[0][2:]]
+ part=0
+ for line in lines[1:]:
+  if line.startswith('## '):
+   part+=1;md+=['',f'<a id="{content["id"]}-{part}"></a>','#'+line]
+  else:md.append(line)
+ return rendered,md,nav
+
 def render_refine_comic(comic):
  e=html.escape
  rendered=f'<figure class="refine-comic" id="{e(comic["id"])}"><img src="{e(comic["image"])}" alt="{e(comic["alt"])}" width="{comic["width"]}" height="{comic["height"]}" loading="lazy" decoding="async"><figcaption>{e(comic["caption"])}</figcaption></figure>'
@@ -952,11 +991,13 @@ def build():
  examples=sum(len(i.get('examples',[])) for i in items)
  tools,tools_md=render_tools(data)
  md+=tools_md
+ importance,importance_md,importance_nav=render_importance_check(data)
+ md+=importance_md
  drawing_refs=data['figure_chapter'].get('reference_keys',[])
  reading='<h3>绘图补充</h3><ul>'+''.join(f'<li>{link(k)}<span> — {e(refs[k]["scope"])}</span></li>' for k in drawing_refs)+'</ul><h3>写作指南、投稿要求与示例论文</h3><ul>'
  reading+=''.join(f'<li>{link(k)}<span> — {e(r["scope"])}</span></li>' for k,r in refs.items() if r.get('public') and k not in drawing_refs)+'</ul>'
  t=(ROOT/'assets/template.html').read_text(encoding='utf-8')
- for k,v in {'TITLE':e(data['site_title']),'SUBTITLE':e(data['site_subtitle']),'PREFACE':preface,'OVERVIEW':overview,'NAV':nav,'DRAFT_NAV':draft_nav,'TOOLS_NAV':tools_nav,'ENTRIES':entries,'TOOLS':tools,'QUICK_START':quick_start,'FIGURE_APPENDIX':figure_appendix,'OPENING':opening,'SKILL':skill,'READING':reading,'TOTAL':str(len(items)),'CHAPTERS':'3','EXAMPLES':str(examples)}.items():t=t.replace('{{'+k+'}}',v)
+ for k,v in {'TITLE':e(data['site_title']),'SUBTITLE':e(data['site_subtitle']),'PREFACE':preface,'OVERVIEW':overview,'NAV':nav,'DRAFT_NAV':draft_nav,'TOOLS_NAV':tools_nav,'IMPORTANCE_NAV':importance_nav,'IMPORTANCE':importance,'ENTRIES':entries,'TOOLS':tools,'QUICK_START':quick_start,'FIGURE_APPENDIX':figure_appendix,'OPENING':opening,'SKILL':skill,'READING':reading,'TOTAL':str(len(items)),'CHAPTERS':'4','EXAMPLES':str(examples)}.items():t=t.replace('{{'+k+'}}',v)
  (ROOT/'index.html').write_text(t,encoding='utf-8')
  (ROOT/'book').mkdir(exist_ok=True)
  md+=figure_appendix_md
@@ -965,7 +1006,7 @@ def build():
  package_skill(source_data)
  package_figure_skill(source_data)
  package_archive({'source':'skills/tutorial-authoring/SKILL.md','download':'assets/tutorial-authoring-skill.zip'},['SKILL.md','LICENSE'])
- print(f'Built StarPaper (3 chapters), {len(lessons)+len(data.get("refine_templates",[]))+len(annotated)+bool(data.get("intro_connections"))} paragraph lessons.')
+ print(f'Built StarPaper (4 chapters), {len(lessons)+len(data.get("refine_templates",[]))+len(annotated)+bool(data.get("intro_connections"))} paragraph lessons.')
 
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__)
