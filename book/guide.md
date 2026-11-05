@@ -231,6 +231,8 @@ Rebuttal 教程：[💪 StrongResponse](https://da1yuqin.github.io/StrongRespons
 
 ## 写在前头
 
+学术论文是认知碾压，你要告诉别人他不知道的事情。
+
 cs-paper-writing 按章节加载写作规则。starpaper-figures 支持方法图、案例图和实验图。
 
 这里整理我的论文写作与修改经验，供学术讨论。本人并非领域权威，内容可能有误。
